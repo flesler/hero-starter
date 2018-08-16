@@ -20,8 +20,10 @@
   "devDependencies": {
     "chai": "^1.9.2",
     "commander": "^2.9.0",
-    "eslint": "^3.8.0",
-    "mocha": "^1.21.4"
+    "eslint": "^4.10.0",
+    "mocha": "^1.21.4",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.8.0"
   },
   "dependencies": {
     "ai-battle-engine": "git+https://github.com/JSJitsu/ai-battle-engine.git"
