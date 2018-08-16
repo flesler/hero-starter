@@ -1,188 +1,131 @@
-/**
+const opts = require('commander')
 
-If you'd like to test your hero code locally, run this script using node.
-
-While you do not need to run this script to enter the battle, it is highly
-recommended that you run a few test battles to ensure your hero is working as
-you intended.
-
-See README.md for more information.
-
-*/
-
-// possible cli options, and their default values
-let cliOptions = {
-    wait: false,
-    turns: 15
-};
-
-// accepting cli parameters
-var args = require('commander');
-args.description('CLI to test the hero.js code locally')
-    .option('-w, --wait', 'Turn by turn step through of the battle')
-    .option('-t, --turns [int]', 'Specifies how many turns to run', parseInt)
-    .parse(process.argv);
-
-// args validation
-if (args.turns && isNaN(args.turns)) {
-    console.log();
-    console.log("**Invalid turns input, input has to be an integer");
-    args.outputHelp();
-    return false;
-}
-
-// overwrite cli parameters
-for (var key in args) {
-    cliOptions[key] = args[key];
-}
+opts
+	.description('CLI to test the hero.js code locally')
+	.option('-w, --wait <n>', 'Turn by turn step through of the battle', parseFloat, 1500)
+	.option('-t, --turns <n>', 'Specifies how many turns to run', parseFloat, 1089)
+	.option('-h, --only-hero', 'Show only hero turns')
+	.parse(process.argv)
 
 // Get the helper file and the Game logic
-var ai_battle_engine = require('ai-battle-engine');
-var GameEngine = new ai_battle_engine();
-var helpers = require('./helpers.js');
-var Game = GameEngine.getGame();
+const ai_battle_engine = require('ai-battle-engine')
+
+const GameEngine = new ai_battle_engine()
+const Game = GameEngine.getGame()
 
 // Get my hero's move function ("brain")
-var heroMoveFunction = require('./hero.js');
+const heroMoveFunction = require('./hero.js')
 
-// The move function ("brain") the practice enemy will use
-var enemyMoveFunction = function (gameData, helpers) {
-  // Move in a random direction
+const map =
+'DPTDPTDPTDPT' +
+'D..A.......D' +
+'P.E.....E..P' +
+'T.TTTD..E..T' +
+'D.TA.......D' +
+'P.T.P..A...P' +
+'T.T..DA....T' +
+'D.D........D' +
+'P..HE...E..P' +
+'T..E.......T' +
+'P......A...P' +
+'TPTDPTDPTDPT'
 
-    // var choices = ['North', 'South', 'East', 'West'];
-
-    // return choices[Math.floor(Math.random()*4)];
-    return helpers.findNearestHealthWell (gameData);
-};
-
-var currentTurn = 0;
-
-// Makes a new game with a 5x5 board
-var game = new Game(5);
-
-game.maxTurn = cliOptions.turns;
-
-/**
- * Sets up the game's enviroment and adds heroes, displays startup summary
- */
-function gameSetup () {
-    // Add a health well in the middle of the board
-    game.addHealthWell(2,2);
-
-    // Add diamond mines on either side of the health well
-    game.addDiamondMine(2,1);
-    game.addDiamondMine(2,3);
-
-    // Add your hero in the top left corner of the map (team 0)
-    game.addHero(0, 0, 'MyHero', 0);
-
-    // Add an enemy hero in the bottom right corner of the map (team 1)
-    game.addHero(4, 4, 'Enemy', 1);
-
-    if (cliOptions.wait){ // wait mode
-        clearScreen();
-    }
-
-    console.log('About to start the game!  Here is what the board looks like:');
-
-    // You can run game.board.inspect() in this test code at any time
-    // to log out the current state of the board (keep in mind that in the actual
-    // game, the game object will not have any functions on it)
-    game.board.inspect();
-
-    if (cliOptions.wait){ // wait mode
-        console.log();
-        console.log("Press ENTER to continue");
-    }
+function carefulAssasin(gameData, helpers) {
+	const myHero = gameData.activeHero
+	if (myHero.health < 50) {
+		return helpers.findNearestHealthWell(gameData)
+	}
+	return helpers.findNearestWeakerEnemy(gameData)
+		|| helpers.findNearestEnemy(gameData)
 }
 
-/**
- * Runs the current turn
- * param {integer} turn - the current turn of the game
- */
-function runTurn (turn) {
-    var hero = game.activeHero;
-    var direction;
-    if (hero.name === 'MyHero') {
-      // Ask your hero brain which way it wants to move
-        direction = heroMoveFunction(game, helpers);
-    } else {
-        direction = enemyMoveFunction(game, helpers);
-    }
-    console.log('-----');
-    console.log('Turn ' + turn + ':');
-    console.log('-----');
-    console.log(hero.name + ' tried to move ' + direction);
-    console.log(hero.name + ' owns ' + hero.mineCount + ' diamond mines');
-    console.log(hero.name + ' has ' + hero.health + ' health');
-    game.handleHeroTurn(direction);
-    game.board.inspect();
-
-    if (cliOptions.wait && turn<cliOptions.turns){ // wait mode
-        console.log();
-        console.log("Press ENTER to continue");
-    }
+function safeMiner(gameData, helpers) {
+	const myHero = gameData.activeHero
+	// Get stats on the nearest health well
+	const healthWellStats = helpers.findNearestObjectDirectionAndDistance(gameData.board, myHero, (boardTile) => {
+		if (boardTile.type === 'HealthWell') {
+			return true
+		}
+	})
+	const distanceToHealthWell = healthWellStats.distance
+	const directionToHealthWell = healthWellStats.direction
+	if (myHero.health < 40) {
+		return directionToHealthWell
+	} else if (myHero.health < 100 && distanceToHealthWell === 1) {
+		return directionToHealthWell
+	}
+	return helpers.findNearestNonTeamDiamondMine(gameData)
 }
 
-/**
- * Display summary of the game result
- */
-function gameSummary () {
-    if (game.winningTeam === 0) {
-        console.log('You have won!');
-    } else if (game.winningTeam === 1) {
-        console.log('You have lost.');
-    } else {
-        console.log('The game has ended with no winner.');
-    }
+// Map
+
+const size = Math.sqrt(map.length)
+const game = new Game(size)
+game.maxTurn = opts.turns
+
+let enemies = 0
+let allies = 0
+let myHero
+
+for (let j = 0; j < size; j++) {
+	for (let i = 0; i < size; i++) {
+		const chr = map.charAt(i + j * size)
+		switch (chr) {
+			case '': break
+			case 'D': game.addDiamondMine(j, i); break
+			case 'P': game.addHealthWell(j, i); break
+			case 'T': game.addImpassable(j, i); break
+			case 'H': game.addHero(j, i, 'Hero', 0); break
+			case 'A': game.addHero(j, i, 'Ally ' + (++allies), 0); break
+			case 'E': game.addHero(j, i, 'Enemy ' + (++enemies), 1); break
+		}
+	}
 }
 
-/**
- * End of game, what to do?
- */
-function gameEnd () {
-    gameSummary();
-    process.exit();
-}
+game.heroes.forEach((hero) => {
+	hero.getCode = function () {
+		return this.name[0] + Math.min(this.health, 99)
+		// return this.name.slice(0, 2) + this.name.slice(-1);
+	}
+	if (hero.name === 'Hero') {
+		myHero = hero
+		hero.move = heroMoveFunction
+	} else {
+		hero.move = Math.random() < 0.5 ? safeMiner : carefulAssasin
+	}
+})
 
-// Utils helper functions
-// Clears the console's screen
-function clearScreen () {
-    process.stdout.write('\033c');
-}
+step()
 
+function step() {
+	// Built-in end situation
+	const hero = game.activeHero
+	const direction = hero.move(game, require('./helpers.js'))
+	game.handleHeroTurn(direction)
+	if (game.turn === 1 || hero === myHero || !opts.onlyHero || game.ended) {
+		// console.log('\n'.repeat(100))
+		console.log('<<<<<<<<<<< >>>>>>>>>>>>>>>>')
+		console.log('Turn ' + game.turn + ':')
+		console.log(hero.name, 'tried to move', direction)
+		console.log(hero.name, 'has', hero.health, 'health')
+		console.log(hero.name, 'killed', hero.heroesKilled.length, 'enemies')
+		console.log(hero.name, 'robbed', hero.gravesRobbed, 'graves')
+		console.log(hero.name, 'has', hero.diamondsEarned, 'diamonds')
+		game.board.inspect()
+	}
 
+	if (game.ended) {
+		if (myHero.dead) {
+			console.log('->', myHero.name, 'was DEAD by the end')
+		}
+		if (myHero.won) {
+			console.log('->', myHero.name, 'WON!')
+		} else {
+			console.log('->', myHero.name, 'LOST!')
+		}
+		process.exit()
+	}
 
-// Game Start
-gameSetup();
-
-// Run Turns
-if (cliOptions.wait){ // wait mode
-    const readline = require('readline');
-    readline.emitKeypressEvents(process.stdin);
-
-    process.stdin.setRawMode(true);
-    process.stdin.setEncoding('utf8');
-
-    process.stdin.on('keypress', (str, key) => {
-        if (key.name === 'return') {
-            if (currentTurn<cliOptions.turns){
-                clearScreen();
-                currentTurn++;
-                runTurn(currentTurn);
-            } else {
-                // Game ends
-                gameEnd();
-            }
-        } else if (key.ctrl && key.name==='c'){ // ctrl + c, exit immediately
-            console.log("Pressed Ctrl + C, exiting test-battle.js");
-            process.exit();
-        }
-    });
-} else { // normal mode, runs in 1 go
-    for (currentTurn=1; currentTurn<=cliOptions.turns; currentTurn++) {
-        runTurn(currentTurn);
-    }
-    // Game ends
-    gameEnd();
+	const timeout = Math.ceil(opts.wait / (hero === myHero ? 1 : 10));
+	setTimeout(step, timeout)
 }

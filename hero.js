@@ -33,12 +33,6 @@ function directionTo(to) {
 	return tile ? tile.direction : null
 }
 
-/* function diamondsAdvantage() {
-	const diamonds = game.totalTeamDiamonds
-	const we = game.activeHero.team
-	return diamonds[we] - diamonds[1 - we]
-} */
-
 function getEnemies() {
 	const heroTeam = game.activeHero.team
 	return game.teams[1 - heroTeam].filter(enemy => !enemy.dead)
@@ -133,7 +127,7 @@ function isAThreat(enemy) {
 	return inferHeroType(enemy) !== 'miner'
 }
 
-// - Moncho the "try-hard" -//
+// Moncho the "try-hard"
 const move = function (_game, _helpers) {
 	// Save to outer scope
 	game = _game
@@ -230,15 +224,15 @@ const move = function (_game, _helpers) {
 				// Disregard mines now, let's try a full murderer
 				break
 				// If the difference is too big for either team, don't waste time
-				/*
-				const adv = Math.abs(diamondsAdvantage())
-				if (adv > 100 && dist > 1) {
-					break
-				}
+				// const diamonds = game.totalTeamDiamonds
+				// const we = game.activeHero.team
+				// const adv = Math.abs(diamonds[we] - diamonds[1 - we])
+				// if (adv > 100 && dist > 1) {
+				// 	break
+				// }
 
-				// The greedy version is cool but can get into deadlocks with other greedy allies
-				return closeBy && (!tile.owner || tile.owner.team !== hero.team)
-				*/
+				// // The greedy version is cool but can get into deadlocks with other greedy allies
+				// return closeBy && (!tile.owner || tile.owner.team !== hero.team)
 				// Capture the nearby mine
 				// return (!tile.owner || tile.owner.id !== hero.id);
 			case 'Unoccupied':
