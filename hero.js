@@ -5,6 +5,7 @@ let game
 let helpers
 
 const DIRS = ['North', 'South', 'East', 'West']
+const IGNORE_MINES = false
 
 function getDirections(from, to) {
 	const dirs = []
@@ -201,13 +202,16 @@ const move = function (_game, _helpers) {
 	const direction = directionTo((tile) => {
 		const dist = distanceTo(tile)
 		const closeBy = dist < 6
+		const adjacent = dist <= 1
 		// Find the closest valuable tile
 		switch (tile.type) {
 			case 'Hero':
 				// Ally
 				if (tile.team === hero.team) {
 					// Be a good samaritan, heal the poor dude
-					if (tile.health <= 60 && dist === 1) return true
+					if (tile.health <= 70 && adjacent) {
+						return true
+					}
 					break
 				}
 
@@ -221,19 +225,24 @@ const move = function (_game, _helpers) {
 				// Close-by well, heal fully
 				return hero.health < 100
 			case 'DiamondMine':
-				// Disregard mines now, let's try a full murderer
-				break
+				// Don't go grabbing mines unless full health
+				if (hero.health < 100) {
+					break
+				}
+				if (IGNORE_MINES) {
+					// Disregard mines now, let's try a full murderer
+					break
+				}
 				// If the difference is too big for either team, don't waste time
-				// const diamonds = game.totalTeamDiamonds
-				// const we = game.activeHero.team
-				// const adv = Math.abs(diamonds[we] - diamonds[1 - we])
-				// if (adv > 100 && dist > 1) {
-				// 	break
-				// }
+				const diamonds = game.totalTeamDiamonds
+				const we = game.activeHero.team
+				const diff = Math.abs(diamonds[we] - diamonds[1 - we])
+				if (diff > 100) {
+					break
+				}
 
-				// // The greedy version is cool but can get into deadlocks with other greedy allies
-				// return closeBy && (!tile.owner || tile.owner.team !== hero.team)
-				// Capture the nearby mine
+				return closeBy && (!tile.owner || tile.owner.team !== hero.team)
+				// This greedy version is cool but can get into deadlocks with other greedy allies
 				// return (!tile.owner || tile.owner.id !== hero.id);
 			case 'Unoccupied':
 				// Snatch those bones
@@ -243,8 +252,8 @@ const move = function (_game, _helpers) {
 		return false
 	})
 
-	// If healthy, winning on diamonds and no graves or hurt enemies, go for a fair fight
-	return direction || helpers.findNearestEnemy(game)
+	// If healthy, winning on diamonds and no graves or hurt enemies, go for a fair mines or a fair fight
+	return direction || helpers.findNearestNonTeamDiamondMine(game) || helpers.findNearestEnemy(game) || 'Stay'
 }
 
 module.exports = move

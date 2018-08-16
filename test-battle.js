@@ -111,6 +111,8 @@ function step() {
 		console.log(hero.name, 'killed', hero.heroesKilled.length, 'enemies')
 		console.log(hero.name, 'robbed', hero.gravesRobbed, 'graves')
 		console.log(hero.name, 'has', hero.diamondsEarned, 'diamonds')
+		console.log(hero.name, 'has', hero.mineCount, 'mines')
+		console.log(hero.name, 'healed', hero.healthGiven, 'hp')
 		game.board.inspect()
 	}
 
