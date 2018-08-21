@@ -5,7 +5,7 @@ let game
 let helpers
 
 const DIRS = ['North', 'South', 'East', 'West']
-const IGNORE_MINES = false
+const IGNORE_MINES = true
 
 function getDirections(from, to) {
 	const dirs = []
@@ -191,10 +191,15 @@ const move = function (_game, _helpers) {
 		return directionTo(enemy => enemies.attack.indexOf(enemy) !== -1)
 	}
 
-	if (enemies.stay.length) return 'Stay'
+	if (enemies.stay.length) {
+		return 'Stay'
+	}
 
 	// Unhealthy, go heal
-	if (turnsToDie(hero) === 1) return helpers.findNearestHealthWell(game)
+	// if (turnsToDie(hero) === 1) {
+	if (hero.health < 100) {
+		return helpers.findNearestHealthWell(game)
+	}
 
 	// TODO: Prioritize within those at the same distance, specially attack/heal/run
 
@@ -253,7 +258,7 @@ const move = function (_game, _helpers) {
 	})
 
 	// If healthy, winning on diamonds and no graves or hurt enemies, go for a fair mines or a fair fight
-	return direction || helpers.findNearestNonTeamDiamondMine(game) || helpers.findNearestEnemy(game) || 'Stay'
+	return direction || helpers.findNearestEnemy(game) || helpers.findNearestNonTeamDiamondMine(game) || 'Stay'
 }
 
 module.exports = move
