@@ -1,4 +1,4 @@
 node_modules
 test
-test-battle.js
 helpers.js
+hero.js

@@ -1,29 +1,34 @@
 {
   "name": "hero-starter",
-  "version": "0.0.0",
+  "version": "2.0.0",
   "main": "helpers.js",
   "scripts": {
     "sanity": "mocha -R spec ./test/spec/HeroBrainSpec.js",
     "lint": "eslint ./",
+    "minify": "minify hero.src.js -o hero.js --mangle.topLevel",
+    "precommit": "npm run test && npm run minify && git add hero.js",
     "test": "npm run sanity && npm run lint"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/JSJitsu/hero-starter.git"
+    "url": "https://github.com/flesler/hero-starter.git"
   },
-  "author": "",
+  "author": "flesler",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/JSJitsu/hero-starter/issues"
+    "url": "https://github.com/flesler/hero-starter/issues"
   },
-  "homepage": "https://github.com/JSJitsu/hero-starter",
+  "homepage": "https://github.com/flesler/hero-starter",
   "devDependencies": {
+    "babel-minify": "^0.4.3",
     "chai": "^1.9.2",
+    "colors": "^1.3.2",
     "commander": "^2.9.0",
     "eslint": "^4.10.0",
-    "mocha": "^1.21.4",
     "eslint-config-airbnb-base": "^12.1.0",
-    "eslint-plugin-import": "^2.8.0"
+    "eslint-plugin-import": "^2.8.0",
+    "husky": "^0.14.3",
+    "mocha": "^1.21.4"
   },
   "dependencies": {
     "ai-battle-engine": "git+https://github.com/JSJitsu/ai-battle-engine.git"
