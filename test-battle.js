@@ -3,8 +3,9 @@ const opts = require('commander')
 opts
 	.description('CLI to test the hero.js code locally')
 	.option('-w, --wait <n>', 'Turn by turn step through of the battle', parseFloat, 1500)
-	.option('-t, --turns <n>', 'Specifies how many turns to run', parseFloat, 1089)
+	.option('-t, --turns <n>', 'Specifies how many turns to run', parseFloat, 1250)
 	.option('-h, --only-hero', 'Show only hero turns')
+	.option('-d, --deathmatch', 'Use a deathmatch map')
 	.parse(process.argv)
 
 // Get the helper file and the Game logic
@@ -16,7 +17,7 @@ const Game = GameEngine.getGame()
 // Get my hero's move function ("brain")
 const heroMoveFunction = require('./hero.js')
 
-const map =
+const regularMap =
 'DPTDPTDPTDPT' +
 'D..A.......D' +
 'P.E.....E..P' +
@@ -24,11 +25,26 @@ const map =
 'D.TA.......D' +
 'P.T.P..A...P' +
 'T.T..DA....T' +
-'D.D........D' +
-'P..HE...E..P' +
+'D.D.H......D' +
+'P...E...E..P' +
 'T..E.......T' +
 'P......A...P' +
 'TPTDPTDPTDPT'
+
+const deathmatchMap =
+'TTTTTTTTTTTTT' +
+'T...........T' +
+'T.E..A..E...T' +
+'T.......A...T' +
+'T..E........T' +
+'T...........T' +
+'T.....P.....T' +
+'T..A......E.T' +
+'T.....A.....T' +
+'T.......E...T' +
+'T..H.E......T' +
+'T......A....T' +
+'TTTTTTTTTTTTT'
 
 function carefulAssasin(gameData, helpers) {
 	const myHero = gameData.activeHero
@@ -54,11 +70,12 @@ function safeMiner(gameData, helpers) {
 	} else if (myHero.health < 100 && distanceToHealthWell === 1) {
 		return directionToHealthWell
 	}
-	return helpers.findNearestNonTeamDiamondMine(gameData)
+	return helpers.findNearestNonTeamDiamondMine(gameData) || carefulAssasin(gameData, helpers)
 }
 
 // Map
 
+const map = opts.deathmatch ? deathmatchMap : regularMap
 const size = Math.sqrt(map.length)
 const game = new Game(size)
 game.maxTurn = opts.turns
@@ -80,6 +97,10 @@ for (let j = 0; j < size; j++) {
 			case 'E': game.addHero(j, i, 'Enemy ' + (++enemies), 1); break
 		}
 	}
+}
+
+if (enemies !== allies + 1) {
+	throw new Error('Teams are unbalanced!')
 }
 
 game.heroes.forEach((hero) => {

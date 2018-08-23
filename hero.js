@@ -1,11 +1,14 @@
-// - My Helpers
-
 // Copy to outer scope each turn
 let game
 let helpers
 
 const DIRS = ['North', 'South', 'East', 'West']
+const STAY = 'Stay'
 const IGNORE_MINES = true
+
+const MAX_HEALTH = 100
+const AREA_DMG = 20
+const HIT_DMG = 30
 
 function getDirections(from, to) {
 	const dirs = []
@@ -41,7 +44,7 @@ function getEnemies() {
 
 function turnsToDie(hero) {
 	const health = typeof hero === 'number' ? hero : hero.health
-	return Math.ceil(Math.max(0, health) / 30)
+	return Math.ceil(Math.max(0, health) / HIT_DMG)
 }
 
 function reactToEnemy(enemy) {
@@ -57,17 +60,17 @@ function reactToEnemy(enemy) {
 
 		case 2:
 			// Sure kill
-			te = turnsToDie(enemy.health - 20)
+			te = turnsToDie(enemy.health - AREA_DMG)
 			return te === 0 ? 'attack' :
 				// Can win even if hitting only 20 this turn
 				!nextToWell(enemy) && te < th ? 'attack' : 'run'
 
 		case 3:
-			th = turnsToDie(hero.health - 20)
+			th = turnsToDie(hero.health - AREA_DMG)
 			// Can win even if he hits first
 			return te <= th ? 'attack' :
 				// TODO: Avoid locks due to static enemy
-				hero.health === 100 ? 'stay' :
+				!isHurt(hero) ? 'stay' :
 					isAThreat(enemy) ? 'run' : null
 	}
 	return null
@@ -95,7 +98,7 @@ function tilesAround(tile) {
 }
 
 function nextToWell(hero) {
-	return tilesAround(hero).filter(tile => tile.type === 'HealthWell').length > 0
+	return tilesAround(hero).find(isHealthWell)
 }
 
 function threatsCloseBy() {
@@ -121,18 +124,75 @@ function inferHeroType(hero) {
 	const miner = hero.minesCaptured > 0
 	const killer = hero.heroesKilled.length > 0
 	if (miner === killer) return 'unknown'
-	return miner ? 'miner' : 'killer'
+	return killer ? 'killer' : 'miner'
 }
 
 function isAThreat(enemy) {
 	return inferHeroType(enemy) !== 'miner'
 }
 
+function isHealthWell(tile) {
+	return tile.type === 'HealthWell'
+}
+
+function isHero(tile) {
+	return tile.type === 'Hero'
+}
+
+function isEnemy(tile) {
+	return game.activeHero.team !== tile.team
+}
+
+function isAlly(tile) {
+	return game.activeHero.team === tile.team
+}
+
+function isHurt(hero, dmg = 1) {
+	const min = MAX_HEALTH - dmg
+	return hero.health <= min
+}
+
+function deathMatchMode() {
+	const hero = game.activeHero
+	const lowHp = isHurt(hero, AREA_DMG)
+	const otherHero = tilesAround(hero)
+		.filter(isHero)
+		.filter(tile => (
+			// Target enemies
+			isEnemy(tile) ||
+			// or target wounded allies if not lowHp
+			(!lowHp && isHurt(tile, AREA_DMG))
+		))
+		.sort((h1, h2) => h1.health - h2.health)[0]
+
+	// If we can kill immediately it's best to attack regardless
+	// TODO: Avoid hitting is health <= 20 and at well, since will still kill
+	if (otherHero && isEnemy(otherHero) && otherHero.health <= HIT_DMG) {
+		return directionTo(otherHero)
+	}
+	// If we made it to the well, attack or heal unless low hp
+	if (!nextToWell(hero) || lowHp || !otherHero) {
+		// Go to THE well asap or heal if next to it
+		return helpers.findNearestHealthWell(game) ||
+			// If all 4 tiles around it are taken, follow an ally
+			helpers.findNearestTeamMember(game) ||
+			// If no ally, then a weaker enemy
+			helpers.findNearestWeakerEnemy(game) ||
+			// Otherwise, any enemy
+			helpers.findNearestEnemy(game)
+	}
+	return directionTo(otherHero)
+}
+
 // Moncho the "try-hard"
-const move = function (_game, _helpers) {
+module.exports = (_game, _helpers) => {
 	// Save to outer scope
 	game = _game
 	helpers = _helpers
+
+	if (game.healthWells.length === 1) {
+		return deathMatchMode()
+	}
 
 	const hero = game.activeHero
 	const enemies = { run: [], attack: [], stay: [] }
@@ -170,15 +230,16 @@ const move = function (_game, _helpers) {
 			const visited = {}
 			let tile
 			do {
-				tile = closest((well) => {
-					if (well.type !== 'HealthWell') return false
-					const id = tileId(well)
+				tile = closest((w) => {
+					if (!isHealthWell(w)) return false
+					const id = tileId(w)
 					if (visited[id]) return false
 					visited[id] = true
 					return true
 				})
-				if (tile && !danger[tile.direction]) {
-					return tile.direction
+				const dir = tile && directionTo(tile)
+				if (dir && !danger[dir]) {
+					return dir
 				}
 			} while (tile)
 			// If all wells blocked, just try to stay away
@@ -192,12 +253,12 @@ const move = function (_game, _helpers) {
 	}
 
 	if (enemies.stay.length) {
-		return 'Stay'
+		return STAY
 	}
 
 	// Unhealthy, go heal
 	// if (turnsToDie(hero) === 1) {
-	if (hero.health < 100) {
+	if (isHurt(hero)) {
 		return helpers.findNearestHealthWell(game)
 	}
 
@@ -212,9 +273,9 @@ const move = function (_game, _helpers) {
 		switch (tile.type) {
 			case 'Hero':
 				// Ally
-				if (tile.team === hero.team) {
+				if (isAlly(tile)) {
 					// Be a good samaritan, heal the poor dude
-					if (tile.health <= 70 && adjacent) {
+					if (isHurt(tile, HIT_DMG) && adjacent) {
 						return true
 					}
 					break
@@ -228,10 +289,10 @@ const move = function (_game, _helpers) {
 				break
 			case 'HealthWell':
 				// Close-by well, heal fully
-				return hero.health < 100
+				return isHurt(hero)
 			case 'DiamondMine':
 				// Don't go grabbing mines unless full health
-				if (hero.health < 100) {
+				if (isHurt(hero)) {
 					break
 				}
 				if (IGNORE_MINES) {
@@ -258,7 +319,8 @@ const move = function (_game, _helpers) {
 	})
 
 	// If healthy, winning on diamonds and no graves or hurt enemies, go for a fair mines or a fair fight
-	return direction || helpers.findNearestEnemy(game) || helpers.findNearestNonTeamDiamondMine(game) || 'Stay'
+	return direction ||
+		helpers.findNearestEnemy(game) ||
+		helpers.findNearestTeamMember(game) ||
+		helpers.findNearestNonTeamDiamondMine(game)
 }
-
-module.exports = move
