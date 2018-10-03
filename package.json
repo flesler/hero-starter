@@ -6,7 +6,7 @@
     "sanity": "mocha -R spec ./test/spec/HeroBrainSpec.js",
     "lint": "eslint ./",
     "minify": "minify hero.src.js -o hero.js --mangle.topLevel",
-    "precommit": "npm run test && npm run minify && git add hero.js",
+    "precommit": "npm run minify && npm run test && git add hero.js",
     "test": "npm run sanity && npm run lint"
   },
   "repository": {
